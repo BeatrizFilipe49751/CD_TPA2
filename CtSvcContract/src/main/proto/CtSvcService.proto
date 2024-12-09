@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "CtSvcstubs";
+
+package CtSvcservice; // package do proto
+
+service CtSvcService {
+    rpc UploadPhoto (stream PhotoChunk) returns (ImageInfo);
+    rpc DownloadPhoto (ImageInfo) returns (stream PhotoChunk);
+}
+
+message PhotoChunk {
+  bytes data = 1;          // Conteúdo binário do chunk
+  string filename = 2;     // Nome do arquivo (fornecido apenas no primeiro chunk)
+}
+
+message ImageInfo {
+  string id = 1;           // Identificador da foto no sistema
+}
