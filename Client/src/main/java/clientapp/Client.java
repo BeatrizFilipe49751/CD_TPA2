@@ -7,6 +7,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,7 +27,7 @@ public class Client {
             /*ServerEndPoint serverEndPoint = getServerEndPoint();
             String serverIp = serverEndPoint.getIp();
             int serverPort = serverEndPoint.getPort();*/
-            String serverIp = "34.175.25.136";
+            String serverIp = "34.175.208.3";
             int serverPort = 8500;
 
             System.out.println("Received Server EndPoint: " + serverIp + ":" + serverPort);
@@ -131,7 +132,7 @@ public class Client {
 
             // Read file in chunks and send
             try (FileInputStream fileInputStream = new FileInputStream(filePath)) {
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[1024 * 1024];
                 int bytesRead;
 
                 boolean firstChunk = true;
@@ -167,8 +168,15 @@ public class Client {
         System.out.println("Enter the Image ID to download:");
         String imageId = scanner.nextLine();
 
-        System.out.println("Enter the file path to save the photo:");
-        String savePath = scanner.nextLine();
+        System.out.println("Enter the folder path to save the photo:");
+        String folderPath = scanner.nextLine();
+
+        // Ensure the folder path ends with a separator
+        if (!folderPath.endsWith(File.separator)) {
+            folderPath += File.separator;
+        }
+
+        final String finalFolderPath = folderPath;
 
         try {
             // Connect to Server
@@ -178,39 +186,56 @@ public class Client {
 
             CtSvcServiceGrpc.CtSvcServiceStub stub = CtSvcServiceGrpc.newStub(channel);
 
-            FileOutputStream fileOutputStream = new FileOutputStream(savePath);
+            StreamObserver<PhotoChunkData> responseObserver = new StreamObserver<>() {
+                private FileOutputStream fileOutputStream;
+                private String savePath;
 
-            StreamObserver<PhotoChunk> responseObserver = new StreamObserver<>() {
-                    @Override
-                    public void onNext(PhotoChunk photoChunk) {
-                        try {
-                            fileOutputStream.write(photoChunk.getData().toByteArray());
-                        } catch (IOException e) {
-                            System.err.println("Error writing to file: " + e.getMessage());
+                @Override
+                public void onNext(PhotoChunkData photoChunk) {
+                    try {
+                        if (savePath == null) {
+                            // Use the file name from the first chunk
+                            String fileName = photoChunk.getFullName();
+                            if (fileName.isEmpty()) {
+                                throw new IllegalArgumentException("File name is missing in the first chunk.");
+                            }
+                            savePath = finalFolderPath + fileName;
+                            fileOutputStream = new FileOutputStream(savePath);
+                            System.out.println("Saving photo to: " + savePath);
                         }
-                    }
 
-                    @Override
-                    public void onError(Throwable t) {
-                        System.err.println("Download failed: " + t.getMessage());
-                        try {
+                        fileOutputStream.write(photoChunk.getData().toByteArray());
+                    } catch (IOException e) {
+                        System.err.println("Error writing to file: " + e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    System.err.println("Download failed: " + t.getMessage());
+                    try {
+                        if (fileOutputStream != null) {
                             fileOutputStream.close();
-                        } catch (IOException e) {
-                            System.err.println("Error closing file: " + e.getMessage());
                         }
+                    } catch (IOException e) {
+                        System.err.println("Error closing file: " + e.getMessage());
                     }
+                }
 
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("Photo downloaded successfully to " + savePath);
-                        try {
+                @Override
+                public void onCompleted() {
+                    System.out.println("Photo downloaded successfully to: " + savePath);
+                    try {
+                        if (fileOutputStream != null) {
                             fileOutputStream.close();
-                        } catch (IOException e) {
-                            System.err.println("Error closing file: " + e.getMessage());
                         }
+                    } catch (IOException e) {
+                        System.err.println("Error closing file: " + e.getMessage());
                     }
+                }
             };
 
+            // Send the request to the server
             stub.downloadPhoto(ImageInfo.newBuilder().setId(imageId).build(), responseObserver);
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());

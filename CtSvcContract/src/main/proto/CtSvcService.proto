@@ -7,13 +7,18 @@ package CtSvcservice; // package do proto
 
 service CtSvcService {
     rpc UploadPhoto (stream PhotoChunk) returns (ImageInfo);
-    rpc DownloadPhoto (ImageInfo) returns (stream PhotoChunk);
+    rpc DownloadPhoto (ImageInfo) returns (stream PhotoChunkData);
 }
 
 message PhotoChunk {
   bytes data = 1;          // Conteúdo binário do chunk
   string format = 2;       // Formato da foto (JPEG, PNG, etc)
   repeated string words = 3; // Words to be marked on the photo (fornecido apenas no primeiro chunk)
+}
+
+message PhotoChunkData {
+  bytes data = 1;          // Conteúdo binário do chunk
+  string fullName = 2;     // Nome completo do arquivo (fornecido apenas no primeiro chunk)
 }
 
 message ImageInfo {

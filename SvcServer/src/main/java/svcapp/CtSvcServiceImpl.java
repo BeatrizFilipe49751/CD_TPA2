@@ -1,10 +1,13 @@
 package svcapp;
 
 import CtSvcstubs.*;
+import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import rabbitMQapp.PhotoTask;
 import rabbitMQapp.RabbitMQPublisher;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -89,8 +92,44 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
     }
 
     @Override
-    public void downloadPhoto(ImageInfo request, StreamObserver<PhotoChunk> responseObserver) {
-        // Handle photo download
+    public void downloadPhoto(ImageInfo request, StreamObserver<PhotoChunkData> responseObserver) {
+        String imageId = request.getId() + "-marks";
+        File sharedPath = new File(GLUSTER_SHARED_PATH);
+
+        // Scan directory for the file
+        File[] files = sharedPath.listFiles((dir, name) -> name.startsWith(imageId));
+        if (files == null || files.length == 0) {
+            responseObserver.onError(new FileNotFoundException("File not found for ID: " + imageId));
+            return;
+        }
+
+        // Use the first matching file
+        File file = files[0];
+
+        try (FileInputStream fileInputStream = new FileInputStream(file)) {
+            byte[] buffer = new byte[1024 * 1024]; // 1 MB buffer
+            int bytesRead;
+            boolean firstChunk = true;
+
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                PhotoChunkData.Builder chunkData = PhotoChunkData.newBuilder()
+                        .setData(ByteString.copyFrom(buffer, 0, bytesRead));
+
+                // Get name of the file from the first chunk
+                if (firstChunk) {
+                    chunkData.setFullName(file.getName());
+                    firstChunk = false;
+                }
+
+                PhotoChunkData photoChunkData = chunkData.build();
+                responseObserver.onNext(photoChunkData);
+            }
+            responseObserver.onCompleted();
+
+            System.out.println("Download completed for photo: " + file.getName());
+        } catch (Exception e) {
+            responseObserver.onError(e);
+        }
     }
 
 }
