@@ -1,8 +1,13 @@
 package clientapp;
 
-import CtSvcstubs.*;
+import CtSvcstubs.ImageInfo;
+import CtSvcstubs.PhotoChunk;
+import CtSvcstubs.PhotoChunkData;
+import CtSvcstubs.CtSvcServiceGrpc;
 import com.google.protobuf.ByteString;
-import ctregstubs.*;
+import ctregstubs.Empty;
+import ctregstubs.ServerEndPoint;
+import ctregstubs.CtregServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -15,7 +20,7 @@ import java.util.*;
 
 public class Client {
 
-    // RingManager IP and Port
+    // Register Server IP and Port
     private static final String svcIP = "34.175.254.22";
     private static final int svcPort = 8500;
 
@@ -23,14 +28,26 @@ public class Client {
 
     public static void main(String[] args) {
         try {
-            // Retrieve the PrimeServer endpoint from RingManager
-            /*ServerEndPoint serverEndPoint = getServerEndPoint();
+            /*
+            // Retrieve the Server endpoint from Register
+            ServerEndPoint serverEndPoint = getServerEndPoint();
             String serverIp = serverEndPoint.getIp();
-            int serverPort = serverEndPoint.getPort();*/
-            String serverIp = "34.175.208.3";
+            int serverPort = serverEndPoint.getPort();
+            */
+
+            //TODO check ip??? (tpa-node1 also registerserver?)
+            String serverIp = "34.175.208.3"; // Did you mean 34.175.254.22
             int serverPort = 8500;
 
-            System.out.println("Received Server EndPoint: " + serverIp + ":" + serverPort);
+            // Get endpoint from server
+            ServerEndPoint sep = getServerEndPoint();
+            if(sep != null) {
+                serverIp = sep.getIp();
+                serverPort = sep.getPort();
+            } else {
+                System.out.println("Server endpoint not found. Exiting...");
+                System.exit(1);
+            }
 
             while (true) {
                 switch (Menu()) {
@@ -130,7 +147,7 @@ public class Client {
                 }
             });
 
-            // Read file in chunks and send
+            // Read a file in chunks and send
             try (FileInputStream fileInputStream = new FileInputStream(filePath)) {
                 byte[] buffer = new byte[1024 * 1024];
                 int bytesRead;

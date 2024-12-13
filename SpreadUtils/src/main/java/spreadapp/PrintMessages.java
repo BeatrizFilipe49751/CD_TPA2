@@ -9,13 +9,13 @@ public class PrintMessages {
         SpreadGroup group = info.getGroup();
 
         if(info.isRegularMembership()) {
-            SpreadGroup members[] = info.getMembers();
-            MembershipInfo.VirtualSynchronySet virtual_synchrony_sets[] = info.getVirtualSynchronySets();
+            SpreadGroup[] members = info.getMembers();
+            MembershipInfo.VirtualSynchronySet[] virtual_synchrony_sets = info.getVirtualSynchronySets();
             MembershipInfo.VirtualSynchronySet my_virtual_synchrony_set = info.getMyVirtualSynchronySet();
             System.out.println("REGULAR membership for group " + group +
                     " with " + members.length + " members:");
-            for( int i = 0; i < members.length; ++i ) {
-                System.out.println("\t" + members[i]);
+            for (SpreadGroup member : members) {
+                System.out.println("\t" + member);
             }
             //System.out.println("Group ID is " + info.getGroupID());
             System.out.print("\tDue to: ");
@@ -29,7 +29,7 @@ public class PrintMessages {
                 System.out.println("NETWORK change");
                 for( int i = 0 ; i < virtual_synchrony_sets.length ; ++i ) {
                     MembershipInfo.VirtualSynchronySet set = virtual_synchrony_sets[i];
-                    SpreadGroup setMembers[] = set.getMembers();
+                    SpreadGroup[] setMembers = set.getMembers();
                     System.out.print("\t\t");
                     if( set == my_virtual_synchrony_set ) {
                         System.out.print( "(LOCAL) " );
@@ -101,11 +101,11 @@ public class PrintMessages {
                 System.out.println(" REJECTED message.");
                 System.out.print("Sent by  " + msg.getSender() + " ");
                 //System.out.println("Type is " + msg.getType() + ".");
-                SpreadGroup groups[] = msg.getGroups();
+                SpreadGroup[] groups = msg.getGroups();
                 System.out.println("to " + groups.length + " groups:");
                 for ( SpreadGroup sp :msg.getGroups() )
                     System.out.println("   "+sp.toString());
-                byte data[] = msg.getData();
+                byte[] data = msg.getData();
 
                 System.out.println("The message is: " + new String(data));
             } else {

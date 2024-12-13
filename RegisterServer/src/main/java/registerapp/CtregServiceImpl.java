@@ -4,7 +4,7 @@ import ctregstubs.*;
 import java.util.Map;
 
 public class CtregServiceImpl extends CtregServiceGrpc.CtregServiceImplBase {
-/*
+
     private static Map<ServerEndPoint, Integer> serverLoads;
 
     public CtregServiceImpl(Map<ServerEndPoint, Integer> serverLoads) {
@@ -24,7 +24,11 @@ public class CtregServiceImpl extends CtregServiceGrpc.CtregServiceImplBase {
     }
 
     public static void updateServerLoad(ServerEndPoint endpoint, int load) {
-        serverLoads.put(endpoint, load);
+        if(serverLoads.containsKey(endpoint)) // if the endpoint is already in the map
+            serverLoads.replace(endpoint, load); // adds the new load value
+        else
+            serverLoads.put(endpoint, load); // puts the new load value
     }
- */
+
+
 }

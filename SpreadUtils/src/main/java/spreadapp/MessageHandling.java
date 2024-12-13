@@ -5,6 +5,8 @@ import spread.SpreadConnection;
 import spread.SpreadGroup;
 import spread.SpreadMessage;
 
+import java.util.Arrays;
+
 public class MessageHandling implements BasicMessageListener {
     private final SpreadConnection connection;
 
@@ -21,6 +23,7 @@ public class MessageHandling implements BasicMessageListener {
             if (!spreadMessage.isMembership()) {
                 SpreadGroup myPrivateGroup = connection.getPrivateGroup();
                 //System.out.println("myPrivateGroup=" + myPrivateGroup.toString());
+
                 SpreadGroup senderPrivateGroup = spreadMessage.getSender();
                 //System.out.println("senderPrivateGroup=" + senderPrivateGroup.toString());
                 if (!myPrivateGroup.equals(senderPrivateGroup)) {
@@ -36,7 +39,7 @@ public class MessageHandling implements BasicMessageListener {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println(Arrays.toString(e.getStackTrace()));
         }
     }
 }

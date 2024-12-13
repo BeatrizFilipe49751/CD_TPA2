@@ -11,6 +11,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.UUID;
 
 public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
@@ -54,7 +55,8 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
 
             @Override
             public void onError(Throwable throwable) {
-                throwable.printStackTrace();
+                //throwable.printStackTrace();
+                System.out.println("Error occurred during upload: " + Arrays.toString(throwable.getStackTrace()));
                 closeResources();
             }
 
@@ -85,7 +87,8 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
                         fileOutputStream.close();
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    System.out.println("Error closing file on closeResources: " + e.getMessage());
+                    //e.printStackTrace();
                 }
             }
         };

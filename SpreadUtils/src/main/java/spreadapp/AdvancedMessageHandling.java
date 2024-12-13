@@ -3,10 +3,9 @@ package spreadapp;
 import spread.*;
 
 public class AdvancedMessageHandling implements AdvancedMessageListener {
-    private SpreadConnection connection;
 
     public AdvancedMessageHandling(SpreadConnection connection) {
-        this.connection = connection;
+        connection.add(this);
     }
 
     @Override
@@ -25,8 +24,8 @@ public class AdvancedMessageHandling implements AdvancedMessageListener {
         //if (info.getMembers() != null) {
             SpreadGroup[] members = info.getMembers();
             System.out.println("members of belonging group:"+info.getGroup().toString());
-            for (int i = 0; i < members.length; ++i) {
-                System.out.print(members[i] + ":");
+            for (SpreadGroup member : members) {
+                System.out.print(member + ":");
             }
             System.out.println();
         }

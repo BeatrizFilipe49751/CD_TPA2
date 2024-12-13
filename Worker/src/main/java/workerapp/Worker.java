@@ -13,41 +13,45 @@ public class Worker {
 
     private static final String GLUSTER_SHARED_PATH = System.getenv("GLUSTER_SHARED_PATH");
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         ConnectionFactory factory = RabbitMQConfig.getConnectionFactory();
-        Connection connection = factory.newConnection();
-        Channel channel = connection.createChannel();
 
-        // Declare queue
-        channel.queueDeclare(RabbitMQConfig.QUEUE_NAME, true, false, false, null);
+        try (Connection connection = factory.newConnection()) {
 
-        System.out.println("Worker waiting for tasks...");
+            Channel channel = connection.createChannel();
+            // Declare queue
+            channel.queueDeclare(RabbitMQConfig.QUEUE_NAME, true, false, false, null);
 
-        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            String message = new String(delivery.getBody());
-            Gson gson = new Gson();
-            PhotoTask task = gson.fromJson(message, PhotoTask.class);
+            System.out.println("Worker waiting for tasks...");
 
-            System.out.println("Received task: " + task);
+            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                String message = new String(delivery.getBody());
+                Gson gson = new Gson();
+                PhotoTask task = gson.fromJson(message, PhotoTask.class);
 
-            String fileName = task.getFileName();
-            // Locate the file in the shared Gluster storage
-            File inputFile = new File(GLUSTER_SHARED_PATH, fileName);
-            File outputFile = new File(GLUSTER_SHARED_PATH, fileName.replace(".", "-marks."));
-            System.out.println("Output file path: " + outputFile.getAbsolutePath());
+                System.out.println("Received task: " + task);
 
-            String extension = fileName.substring(fileName.lastIndexOf('.') + 1);
+                // Locate the file in the shared Gluster storage
+                String fileName = task.getFileName();
+                File inputFile = new File(GLUSTER_SHARED_PATH, fileName);
+                File outputFile = new File(GLUSTER_SHARED_PATH, fileName.replace(".", "-marks."));
+                System.out.println("Output file path: " + outputFile.getAbsolutePath());
 
-            // marking
-            MarkApp.annotateImage(inputFile, outputFile, extension, task.getWords());
+                String extension = fileName.substring(fileName.lastIndexOf('.') + 1);
 
-            System.out.println("Processed photo: " + outputFile.getPath());
+                // marking
+                MarkApp.annotateImage(inputFile, outputFile, extension, task.getWords());
 
-            // Acknowledge message
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-        };
+                System.out.println("Processed photo: " + outputFile.getPath());
 
-        channel.basicConsume(RabbitMQConfig.QUEUE_NAME, false, deliverCallback, consumerTag -> {});
+                // Acknowledge a message
+                channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+            };
+
+            channel.basicConsume(RabbitMQConfig.QUEUE_NAME, false, deliverCallback, consumerTag -> {});
+        } catch (Exception e) {
+            System.out.println("An error occurred: " + e.getMessage());
+        }
     }
 
 }
