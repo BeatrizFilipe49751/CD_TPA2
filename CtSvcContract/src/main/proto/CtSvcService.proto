@@ -8,6 +8,7 @@ package CtSvcservice; // package do proto
 service CtSvcService {
     rpc UploadPhoto (stream PhotoChunk) returns (ImageInfo);
     rpc DownloadPhoto (ImageInfo) returns (stream PhotoChunkData);
+    rpc Disconnect(Nothing) returns (Nothing);
 }
 
 message PhotoChunk {
@@ -24,3 +25,5 @@ message PhotoChunkData {
 message ImageInfo {
   string id = 1;           // Identificador da foto no sistema
 }
+
+message Nothing {}

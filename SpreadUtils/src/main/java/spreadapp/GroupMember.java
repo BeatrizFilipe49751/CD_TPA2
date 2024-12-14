@@ -1,27 +1,52 @@
 package spreadapp;
 
+import com.google.gson.Gson;
 import spread.SpreadConnection;
 import spread.SpreadException;
 import spread.SpreadGroup;
 import spread.SpreadMessage;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.*;
+public class GroupMember {
+    private final Map<String, SpreadGroup> groupsBelonging = new HashMap<>();
 
-public class GroupMember extends SpreadCommonMsg {
-
-    private final Map<String, SpreadGroup> groupsBelonging = new HashMap<>(); //TODO is the getter relevant??
-
-    public List<String> getNamesOfBelongingGroups() {
-        return new ArrayList<>(groupsBelonging.keySet());
+    public void leaveGroup(String groupName) throws SpreadException {
+        SpreadGroup group = groupsBelonging.get(groupName);
+        if (group != null) {
+            group.leave();
+            groupsBelonging.remove(groupName);
+            System.out.println("Left from " + group + ".");
+        } else {
+            System.out.println("No group to leave.");
+        }
     }
 
-    //private AdvancedMessageHandling advancedMsgHandling;
-    public GroupMember(String user, String address, int port) {
-        super(false);
-        // Establish the spread connection.
-        super.start(user, address, port);
+    public void joinGroup(SpreadConnection connection, String groupName) throws SpreadException {
+        SpreadGroup newGroup = new SpreadGroup();
+        newGroup.join(connection, groupName);
+        groupsBelonging.put(groupName, newGroup);
     }
 
+    public void sendMessage(String groupName, String message, SpreadConnection connection) throws SpreadException {
+        SpreadMessage msg = new SpreadMessage();
+        msg.setSafe();
+        msg.addGroup(groupName);
+        msg.setData(message.getBytes());
+        connection.multicast(msg);
+    }
+
+    public void electLeader(String groupName, Map<String, Integer> loads, String leader, SpreadConnection connection) throws SpreadException {
+        // Send the leader information to all members
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("leader", leader);
+        payload.put("loads", loads);
+
+        // Convert the payload to JSON
+        Gson gson = new Gson();
+        String json = gson.toJson(payload);
+
+        // Send the message to the group
+        sendMessage(groupName, json, connection);
+    }
 }

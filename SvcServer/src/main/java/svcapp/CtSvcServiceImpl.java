@@ -5,6 +5,8 @@ import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import rabbitMQapp.PhotoTask;
 import rabbitMQapp.RabbitMQPublisher;
+import spreadapp.SpreadUtils;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -15,8 +17,12 @@ import java.util.Arrays;
 import java.util.UUID;
 
 public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
-
     private static final String GLUSTER_SHARED_PATH = System.getenv("GLUSTER_SHARED_PATH");
+    private final SpreadUtils spreadUtils;
+
+    public CtSvcServiceImpl(SpreadUtils spreadUtils) {
+        this.spreadUtils = spreadUtils;
+    }
 
     @Override
     public StreamObserver<PhotoChunk> uploadPhoto(StreamObserver<ImageInfo> responseObserver) {
@@ -48,14 +54,13 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
 
                     // Write the chunk data to the file
                     fileOutputStream.write(photoChunk.getData().toByteArray());
-                } catch (IOException e) {
+                } catch (Exception e) {
                     responseObserver.onError(e);
                 }
             }
 
             @Override
             public void onError(Throwable throwable) {
-                //throwable.printStackTrace();
                 System.out.println("Error occurred during upload: " + Arrays.toString(throwable.getStackTrace()));
                 closeResources();
             }
@@ -135,4 +140,19 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
         }
     }
 
+    @Override
+    public void disconnect(Nothing request, StreamObserver<Nothing> responseObserver) {
+        System.out.println("Received disconnect request");
+        try {
+            if (spreadUtils == null) {
+                throw new IllegalStateException("SpreadUtils is not initialized.");
+            }
+            spreadUtils.sendMessage("REMOVE_LOAD");
+            System.out.println("REMOVE_LOAD message sent.");
+        } catch (Exception e) {
+            System.err.println("Error sending REMOVE_LOAD message: " + e.getMessage());
+        }
+        responseObserver.onNext(Nothing.newBuilder().build());
+        responseObserver.onCompleted();
+    }
 }

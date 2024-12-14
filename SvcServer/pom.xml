@@ -26,11 +26,17 @@
             <groupId>exgrpc</groupId>
             <artifactId>RabbitMQUtils</artifactId>
             <version>1.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.spread</groupId>
-            <artifactId>spread</artifactId>
-            <version>4.4.0</version>
+            <groupId>org.example</groupId>
+            <artifactId>SpreadUtils</artifactId>
+            <version>1.0</version>
         </dependency>
     </dependencies>
 

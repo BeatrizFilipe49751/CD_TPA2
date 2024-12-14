@@ -49,9 +49,12 @@ public class Worker {
             };
 
             channel.basicConsume(RabbitMQConfig.QUEUE_NAME, false, deliverCallback, consumerTag -> {});
+
+            // Keep the worker running
+            Thread.sleep(Long.MAX_VALUE);
+
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
         }
     }
-
 }

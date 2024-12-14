@@ -1,6 +1,7 @@
 package clientapp;
 
 import CtSvcstubs.ImageInfo;
+import CtSvcstubs.Nothing;
 import CtSvcstubs.PhotoChunk;
 import CtSvcstubs.PhotoChunkData;
 import CtSvcstubs.CtSvcServiceGrpc;
@@ -28,26 +29,10 @@ public class Client {
 
     public static void main(String[] args) {
         try {
-            /*
             // Retrieve the Server endpoint from Register
             ServerEndPoint serverEndPoint = getServerEndPoint();
             String serverIp = serverEndPoint.getIp();
             int serverPort = serverEndPoint.getPort();
-            */
-
-            //TODO check ip??? (tpa-node1 also registerserver?)
-            String serverIp = "34.175.208.3"; // Did you mean 34.175.254.22
-            int serverPort = 8500;
-
-            // Get endpoint from server
-            ServerEndPoint sep = getServerEndPoint();
-            if(sep != null) {
-                serverIp = sep.getIp();
-                serverPort = sep.getPort();
-            } else {
-                System.out.println("Server endpoint not found. Exiting...");
-                System.exit(1);
-            }
 
             while (true) {
                 switch (Menu()) {
@@ -58,13 +43,14 @@ public class Client {
                         downloadPhoto(serverIp, serverPort);
                         break;
                     case 0:
+                        notifyServerOnShutdown(serverIp, serverPort);
                         System.exit(0);
                     default:
                         break;
                 }
             }
         } catch (Exception ex) {
-            System.out.println("An error occurred");
+            System.out.println("An error occurred" + ex.getMessage());
         }
     }
 
@@ -99,6 +85,7 @@ public class Client {
             // Request Server EndPoint
             System.out.println("Requesting Server EndPoint from RegisterServer...");
             serverEndPoint = serverBlockingStub.getIp(Empty.newBuilder().build());
+            System.out.println("Server EndPoint received: " + serverEndPoint.getIp() + ":" + serverEndPoint.getPort());
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
         } finally {
@@ -263,4 +250,27 @@ public class Client {
         }
     }
 
+    private static void notifyServerOnShutdown(String serverIp, int serverPort) {
+        System.out.println("Notifying server about shutdown...");
+        try {
+            // Create a channel to the server
+            channel = ManagedChannelBuilder.forAddress(serverIp, serverPort)
+                    .usePlaintext()
+                    .build();
+
+            // Create a blocking stub for synchronous call
+            CtSvcServiceGrpc.CtSvcServiceBlockingStub blockingStub = CtSvcServiceGrpc.newBlockingStub(channel);
+
+            // Call the Disconnect RPC
+            blockingStub.disconnect(Nothing.newBuilder().build());
+
+            System.out.println("Server notified successfully.");
+        } catch (Exception e) {
+            System.err.println("Error notifying server: " + e.getMessage());
+        } finally {
+            if (channel != null) {
+                channel.shutdownNow();
+            }
+        }
+    }
 }

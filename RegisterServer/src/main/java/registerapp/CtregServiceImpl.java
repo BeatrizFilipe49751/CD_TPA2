@@ -1,34 +1,44 @@
 package registerapp;
 
 import ctregstubs.*;
+import io.grpc.stub.StreamObserver;
+import spread.BasicMessageListener;
+import spread.SpreadMessage;
+import spreadapp.ServerEndpoint;
+import spreadapp.SpreadUtils;
 import java.util.Map;
 
 public class CtregServiceImpl extends CtregServiceGrpc.CtregServiceImplBase {
+    private static Map<String, ServerEndpoint> servers;
+    private final SpreadUtils spreadUtils;
 
-    private static Map<ServerEndPoint, Integer> serverLoads;
-
-    public CtregServiceImpl(Map<ServerEndPoint, Integer> serverLoads) {
-        CtregServiceImpl.serverLoads = serverLoads;
+    public CtregServiceImpl(Map<String, ServerEndpoint> servers, SpreadUtils spreadUtils) {
+        CtregServiceImpl.servers = servers;
+        this.spreadUtils = spreadUtils;
     }
 
     @Override
-    public void getIp(Empty request, io.grpc.stub.StreamObserver<ServerEndPoint> responseObserver) {
-        ServerEndPoint leastLoaded = serverLoads.entrySet()
-                .stream()
-                .min(Map.Entry.comparingByValue())
-                .orElseThrow(() -> new IllegalStateException("No servers available"))
-                .getKey();
-
-        responseObserver.onNext(leastLoaded);
-        responseObserver.onCompleted();
+    public void getIp(Empty request, StreamObserver<ServerEndPoint> responseObserver) {
+        String message = "GET_NAME:";
+        spreadUtils.sendMessage(message);
+        spreadUtils.getConnection().add(new BasicMessageListener() {
+            @Override
+            public void messageReceived(SpreadMessage spreadMessage) {
+                String receivedMessage = new String(spreadMessage.getData());
+                if (receivedMessage.startsWith("NAME:")) {
+                    String[] parts = receivedMessage.split(":");
+                    String name = parts[1];
+                    ServerEndpoint server = servers.get(name);
+                    ServerEndPoint response = ServerEndPoint.newBuilder()
+                            .setIp(server.getIp())
+                            .setPort(server.getPort())
+                            .build();
+                    responseObserver.onNext(response);
+                    responseObserver.onCompleted();
+                    spreadUtils.getConnection().remove(this);
+                }
+            }
+        });
     }
-
-    public static void updateServerLoad(ServerEndPoint endpoint, int load) {
-        if(serverLoads.containsKey(endpoint)) // if the endpoint is already in the map
-            serverLoads.replace(endpoint, load); // adds the new load value
-        else
-            serverLoads.put(endpoint, load); // puts the new load value
-    }
-
 
 }

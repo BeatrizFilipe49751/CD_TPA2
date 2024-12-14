@@ -1,21 +1,66 @@
 package spreadapp;
 
-public class SpreadUtils extends SpreadCommonMsg {
+import spread.SpreadConnection;
+import spread.SpreadException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Map;
 
-    // VM with spread
-    // private static final String daemonIP="35.195.114.14"; // Node1
-    // private static final String daemonIP = "34.140.140.168"; // Node2
-    // private static final int daemonPort = 4803;
-    //private SpreadConnection connection;
-    //private final Map<String, SpreadGroup> groupsBelonging = new HashMap<>();
-    // private static final String groupName = "Servers";
+public class SpreadUtils {
+    private SpreadConnection connection;
+    private final String groupName;
+    private final GroupMember groupMember = new GroupMember();
 
-    //private AdvancedMessageHandling advancedMsgHandling;
+    public SpreadUtils(String groupName) {
+        this.groupName = groupName;
+    }
 
-    public SpreadUtils() { // TODO check if everything is ok
-        super(true);
+    public void start(String address, int port, String name) {
+        // Establish the spread connection.
+        try {
+            connection = new SpreadConnection();
+            connection.connect(InetAddress.getByName(address), port, name, false, true);
+        } catch (SpreadException e) {
+            System.err.println("There was an error connecting to the daemon.");
+            System.err.println(Arrays.toString(e.getStackTrace()));
+            System.exit(1);
+        } catch (UnknownHostException e) {
+            System.err.println("Can't find the daemon " + address);
+            System.exit(1);
+        }
+    }
+
+    public void joinGroup() throws SpreadException {
+        groupMember.joinGroup(connection, groupName);
+    }
+
+    public void leaveGroup() throws SpreadException {
+        groupMember.leaveGroup(groupName);
+    }
+
+    public void sendMessage(String message) {
+        try {
+            groupMember.sendMessage(groupName, message, connection);
+        } catch (SpreadException e) {
+            System.err.println("Error sending message: " + e.getMessage());
+        }
+    }
+
+    public void close() throws SpreadException {
+        // remove listener
+        connection.disconnect();
+    }
+
+    public void electLeader(Map<String, Integer> loads, String leader) {
+        try {
+            groupMember.electLeader(groupName, loads, leader, connection);
+        } catch (SpreadException e) {
+            System.err.println("Error electing leader: " + e.getMessage());
+        }
+    }
+
+    public SpreadConnection getConnection() {
+        return connection;
     }
 }
-
-
-
