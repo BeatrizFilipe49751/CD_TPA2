@@ -51,11 +51,11 @@ public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
             checkIfLeaderElectionNeeded(newMember);
         } else if (info.isSelfLeave()) {
             // If the leader leaves, a new leader is elected
+            loads.remove(name);
             String newLeader = loads.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
                     .orElse(null);
-            loads.remove(name);
             spreadUtils.electLeader(loads, newLeader);
             spreadUtils.getConnection().remove(this);
         } else if (info.isCausedByLeave() || info.isCausedByDisconnect()) {

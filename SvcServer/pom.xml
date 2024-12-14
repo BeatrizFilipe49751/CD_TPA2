@@ -26,12 +26,6 @@
             <groupId>exgrpc</groupId>
             <artifactId>RabbitMQUtils</artifactId>
             <version>1.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.example</groupId>
