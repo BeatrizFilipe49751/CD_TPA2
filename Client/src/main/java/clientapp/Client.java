@@ -12,7 +12,6 @@ import ctregstubs.CtregServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -20,20 +19,19 @@ import java.io.IOException;
 import java.util.*;
 
 public class Client {
-
-    // Register Server IP and Port
+    // Register Server IP and Port for initial connection
     private static final String svcIP = "34.175.254.22";
     private static final int svcPort = 8500;
-
     private static ManagedChannel channel;
 
     public static void main(String[] args) {
         try {
-            // Retrieve the Server endpoint from Register
+            // Retrieve the Server endpoint from the RegisterServer
             ServerEndPoint serverEndPoint = getServerEndPoint();
             String serverIp = serverEndPoint.getIp();
             int serverPort = serverEndPoint.getPort();
 
+            // Main loop for menu-based operations
             while (true) {
                 switch (Menu()) {
                     case 1:  // Upload a photo
@@ -42,18 +40,20 @@ public class Client {
                     case 2:  // Download a photo
                         downloadPhoto(serverIp, serverPort);
                         break;
-                    case 0:
-                        notifyServerOnShutdown(serverIp, serverPort);
+                    case 0: // Exit
+                        notifyServerOnShutdown(serverIp, serverPort); // Notify the server before exiting
                         System.exit(0);
                     default:
                         break;
                 }
             }
         } catch (Exception ex) {
+            // Handle any unexpected errors
             System.out.println("An error occurred" + ex.getMessage());
         }
     }
 
+    // Displays the menu and returns the user's choice
     private static int Menu() {
         int op;
         Scanner scan = new Scanner(System.in);
@@ -66,7 +66,7 @@ public class Client {
             System.out.println();
             System.out.println("Choose an Option?");
             op = scan.nextInt();
-        } while (!(op == 1 || op == 2 || op == 0));
+        } while (!(op == 1 || op == 2 || op == 0)); // Validates input
         return op;
     }
 
@@ -74,7 +74,7 @@ public class Client {
     private static ServerEndPoint getServerEndPoint() {
         ServerEndPoint serverEndPoint = null;
         try {
-            // Connect to RegisterServer
+            // Connect to the Register Server to get the actual Server EndPoint
             System.out.println("Connecting to RegisterServer at " + svcIP + ":" + svcPort);
             channel = ManagedChannelBuilder.forAddress(svcIP, svcPort)
                     .usePlaintext()
@@ -87,8 +87,10 @@ public class Client {
             serverEndPoint = serverBlockingStub.getIp(Empty.newBuilder().build());
             System.out.println("Server EndPoint received: " + serverEndPoint.getIp() + ":" + serverEndPoint.getPort());
         } catch (Exception e) {
+            // Handle connection errors
             System.out.println("An error occurred: " + e.getMessage());
         } finally {
+            // Ensure the channel is closed
             if (channel != null) {
                 channel.shutdown();
             }
@@ -96,10 +98,11 @@ public class Client {
         return serverEndPoint;
     }
 
-    // Function to upload a photo
+    // Function to upload a photo to the server
     private static void uploadPhoto(String serverIp, int serverPort) {
         Scanner scanner = new Scanner(System.in);
 
+        // Prompt the user for the file path and words to mark
         System.out.println("Enter the file path to upload:");
         String filePath = scanner.nextLine();
 
@@ -110,14 +113,14 @@ public class Client {
         String[] words = wordsInput.split(",");
 
         try {
-            // Connect to Server
+            // Connect to Server and prepare for streaming the photo
             channel = ManagedChannelBuilder.forAddress(serverIp, serverPort)
                     .usePlaintext()
                     .build();
 
             CtSvcServiceGrpc.CtSvcServiceStub stub = CtSvcServiceGrpc.newStub(channel);
 
-            StreamObserver<PhotoChunk> requestObserver = stub.uploadPhoto(new StreamObserver<ImageInfo>() {
+            StreamObserver<PhotoChunk> requestObserver = stub.uploadPhoto(new StreamObserver<>() {
                 @Override
                 public void onNext(ImageInfo imageInfo) {
                     System.out.println("Photo uploaded successfully. Image ID: " + imageInfo.getId());
@@ -134,9 +137,9 @@ public class Client {
                 }
             });
 
-            // Read a file in chunks and send
+            // Read the file in chunks and stream them
             try (FileInputStream fileInputStream = new FileInputStream(filePath)) {
-                byte[] buffer = new byte[1024 * 1024];
+                byte[] buffer = new byte[1024 * 1024]; // Buffer size of 1MB
                 int bytesRead;
 
                 boolean firstChunk = true;
@@ -165,10 +168,11 @@ public class Client {
         }
     }
 
-    // Function to download a photo
+    // Function to download a photo from the server
     private static void downloadPhoto(String serverIp, int serverPort) {
         Scanner scanner = new Scanner(System.in);
 
+        // Get the Image ID and folder to save the photo
         System.out.println("Enter the Image ID to download:");
         String imageId = scanner.nextLine();
 
@@ -183,7 +187,7 @@ public class Client {
         final String finalFolderPath = folderPath;
 
         try {
-            // Connect to Server
+            // Connect to Server for downloading the photo
             channel = ManagedChannelBuilder.forAddress(serverIp, serverPort)
                     .usePlaintext()
                     .build();
@@ -198,7 +202,7 @@ public class Client {
                 public void onNext(PhotoChunkData photoChunk) {
                     try {
                         if (savePath == null) {
-                            // Use the file name from the first chunk
+                            // Handle first chunk to get file name
                             String fileName = photoChunk.getFullName();
                             if (fileName.isEmpty()) {
                                 throw new IllegalArgumentException("File name is missing in the first chunk.");
@@ -239,7 +243,7 @@ public class Client {
                 }
             };
 
-            // Send the request to the server
+            // Request the photo download from the server
             stub.downloadPhoto(ImageInfo.newBuilder().setId(imageId).build(), responseObserver);
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
@@ -250,6 +254,7 @@ public class Client {
         }
     }
 
+    // Notify the server before shutting down
     private static void notifyServerOnShutdown(String serverIp, int serverPort) {
         System.out.println("Notifying server about shutdown...");
         try {
@@ -258,7 +263,6 @@ public class Client {
                     .usePlaintext()
                     .build();
 
-            // Create a blocking stub for synchronous call
             CtSvcServiceGrpc.CtSvcServiceBlockingStub blockingStub = CtSvcServiceGrpc.newBlockingStub(channel);
 
             // Call the Disconnect RPC

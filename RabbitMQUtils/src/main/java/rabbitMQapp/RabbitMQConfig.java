@@ -3,14 +3,22 @@ package rabbitMQapp;
 import com.rabbitmq.client.ConnectionFactory;
 
 public class RabbitMQConfig {
-    public static final String EXCHANGE_NAME = "photo-exchange";
-    public static final String QUEUE_NAME = "photo-task-queue";
-    public static final String ROUTING_KEY = "photo.task";
+    public final String EXCHANGE_NAME = "photo-exchange";
+    public String QUEUE_NAME;
+    public final String ROUTING_KEY = "photo.task";
+    public String IP;
+    public Integer PORT;
 
-    public static ConnectionFactory getConnectionFactory() {
+    public RabbitMQConfig(String queueName, String ip, Integer port) {
+        QUEUE_NAME = queueName;
+        IP = ip;
+        PORT = port;
+    }
+
+    public ConnectionFactory getConnectionFactory() {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("10.204.0.26");
-        factory.setPort(5672);
+        factory.setHost(IP);
+        factory.setPort(PORT);
         factory.setUsername("guest");
         factory.setPassword("guest");
         return factory;

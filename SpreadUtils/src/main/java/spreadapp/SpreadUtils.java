@@ -7,6 +7,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Map;
 
+// SpreadUtils: Utility class for Spread operations
 public class SpreadUtils {
     private SpreadConnection connection;
     private final String groupName;
@@ -16,8 +17,8 @@ public class SpreadUtils {
         this.groupName = groupName;
     }
 
+    // Starts the Spread connection
     public void start(String address, int port, String name) {
-        // Establish the spread connection.
         try {
             connection = new SpreadConnection();
             connection.connect(InetAddress.getByName(address), port, name, false, true);
@@ -31,14 +32,17 @@ public class SpreadUtils {
         }
     }
 
+    // Joins the group
     public void joinGroup() throws SpreadException {
         groupMember.joinGroup(connection, groupName);
     }
 
+    // Leaves the group
     public void leaveGroup() throws SpreadException {
         groupMember.leaveGroup(groupName);
     }
 
+    // Sends a message to the group
     public void sendMessage(String message) {
         try {
             groupMember.sendMessage(groupName, message, connection);
@@ -47,11 +51,12 @@ public class SpreadUtils {
         }
     }
 
+    // Closes the connection
     public void close() throws SpreadException {
-        // remove listener
         connection.disconnect();
     }
 
+    // Elects a leader and sends the leader info to the group
     public void electLeader(Map<String, Integer> loads, String leader) {
         try {
             groupMember.electLeader(groupName, loads, leader, connection);

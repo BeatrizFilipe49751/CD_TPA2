@@ -1,5 +1,6 @@
 package spreadapp;
 
+// ServerEndpoint: Represents a server's endpoint with IP and port
 public class ServerEndpoint {
     private final String ip;
     private final int port;

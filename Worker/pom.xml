@@ -33,6 +33,11 @@
             <artifactId>amqp-client</artifactId>
             <version>5.22.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>SpreadUtils</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
 
     <build>

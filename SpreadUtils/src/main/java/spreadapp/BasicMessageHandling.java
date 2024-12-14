@@ -8,8 +8,9 @@ import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+// BasicMessageHandling: Message handling for the non-leader nodes
 public class BasicMessageHandling implements BasicMessageListener {
-    String name;
+    String name; // Name of the server
     SpreadUtils spreadUtils;
     public BasicMessageHandling(String name, SpreadUtils spreadUtils) {
         this.name = name;
@@ -20,15 +21,15 @@ public class BasicMessageHandling implements BasicMessageListener {
     public void messageReceived(SpreadMessage spreadMessage) {
         String message = new String(spreadMessage.getData());
         if (isJson(message)) {
+            // Process JSON messages for leader election and load distribution
             Gson gson = new Gson();
             Type payloadType = new TypeToken<Map<String, Object>>() {}.getType();
             Map<String, Object> payload = gson.fromJson(message, payloadType);
 
             String leader = (String) payload.get("leader");
             Map<String, Integer> loads = gson.fromJson(gson.toJson(payload.get("loads")), new TypeToken<Map<String, Integer>>() {}.getType());
-
-            System.out.println("Leader: " + leader);
             if (leader.equals(name)) {
+                // This server becomes the leader
                 System.out.println("I am the leader");
                 spreadUtils.getConnection().add(new AdvancedMessageHandlingLeader(spreadUtils, name, loads));
                 spreadUtils.getConnection().remove(this);
@@ -36,6 +37,7 @@ public class BasicMessageHandling implements BasicMessageListener {
                 System.out.println("I am not the leader");
             }
         } else if (message.equals("LEADER1")) {
+            // This server becomes the leader
             System.out.println("I am the leader");
             ConcurrentHashMap<String, Integer> loads = new ConcurrentHashMap<>();
             loads.put(name, 0);
@@ -44,6 +46,7 @@ public class BasicMessageHandling implements BasicMessageListener {
         }
     }
 
+    // Utility to check if a message is in JSON format
     private boolean isJson(String payload) {
         payload = payload.trim();
         return (payload.startsWith("{") && payload.endsWith("}")) || (payload.startsWith("[") && payload.endsWith("]"));

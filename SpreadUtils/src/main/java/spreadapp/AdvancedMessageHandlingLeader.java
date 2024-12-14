@@ -5,10 +5,12 @@ import spread.MembershipInfo;
 import spread.SpreadMessage;
 import java.util.Map;
 
+// AdvancedMessageHandlingLeader: Message handling for the leader server
 public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
-    private final Map<String, Integer> loads;
+    private final Map<String, Integer> loads; // Map to keep track of connected clients to each server
     SpreadUtils spreadUtils;
-    String name;
+    String name; // Name of the server (leader)
+
     public AdvancedMessageHandlingLeader(SpreadUtils spreadUtils, String name, Map<String, Integer> loads) {
         this.spreadUtils = spreadUtils;
         this.name = name;
@@ -20,13 +22,13 @@ public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
         String message = new String(spreadMessage.getData());
 
         switch (message) {
-            case "REMOVE_LOAD":
+            case "REMOVE_LOAD": // Decreases the load of the member that sent the message
                 String memberName = spreadMessage.getSender().toString().split("#")[1];
                 loads.put(memberName, loads.getOrDefault(memberName, 0) - 1);
                 System.out.println("Received REMOVE_LOAD from: " + memberName);
                 checkIfLeaderElectionNeeded(memberName);
                 break;
-            case "GET_NAME:":
+            case "GET_NAME:": // Responds with the name of the server with less connected clients
                 String leastLoaded = getFirstLeastLoaded();
                 spreadUtils.sendMessage("NAME:" + leastLoaded);
                 loads.put(leastLoaded, loads.getOrDefault(leastLoaded, 0) + 1);
@@ -40,14 +42,15 @@ public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
 
     @Override
     public void membershipMessageReceived(SpreadMessage spreadMessage) {
-        // When new member joins, send loads to the new member
         MembershipInfo info = spreadMessage.getMembershipInfo();
         if (info.isCausedByJoin()) {
+            // New member joined; initializes their load to 0
             String newMember = info.getJoined().toString().split("#")[1];
             System.out.println("New member joined: " + newMember);
             loads.put(newMember, 0);
             checkIfLeaderElectionNeeded(newMember);
         } else if (info.isSelfLeave()) {
+            // If the leader leaves, a new leader is elected
             String newLeader = loads.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
@@ -63,6 +66,7 @@ public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
         }
     }
 
+    // Checks if a new leader election is required
     private void checkIfLeaderElectionNeeded(String memberName) {
         System.out.println("Checking if leader election needed: " + memberName + " " + loads.get(memberName) + " " + loads.get(name));
         if (loads.get(memberName) < loads.get(name)) {
@@ -73,6 +77,7 @@ public class AdvancedMessageHandlingLeader implements AdvancedMessageListener {
         }
     }
 
+    // Finds the least loaded server
     private String getFirstLeastLoaded() {
         return loads.entrySet().stream()
                 .min(Map.Entry.comparingByValue())

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 public class MarkApp {
 
+    // Annotate image with provided keywords and save to the output file
     public static void annotateImage(File inputFile, File outputFile, String extension, ArrayList<String> keywords) throws IOException {
         BufferedImage img = ImageIO.read(inputFile);
         Graphics2D gfx = img.createGraphics();

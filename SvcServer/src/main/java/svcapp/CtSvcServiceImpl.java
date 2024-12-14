@@ -4,6 +4,7 @@ import CtSvcstubs.*;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import rabbitMQapp.PhotoTask;
+import rabbitMQapp.RabbitMQConfig;
 import rabbitMQapp.RabbitMQPublisher;
 import spreadapp.SpreadUtils;
 
@@ -16,39 +17,45 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.UUID;
 
+// CtSvcServiceImpl class implements the gRPC service for uploading and downloading photos, and disconnection warning
 public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
     private static final String GLUSTER_SHARED_PATH = System.getenv("GLUSTER_SHARED_PATH");
     private final SpreadUtils spreadUtils;
+    private final RabbitMQPublisher rabbitMQPublisher;
 
-    public CtSvcServiceImpl(SpreadUtils spreadUtils) {
+    public CtSvcServiceImpl(SpreadUtils spreadUtils, String ipRabbitMQ, int portRabbitMQ, String workQueue) {
         this.spreadUtils = spreadUtils;
+        this.rabbitMQPublisher = new RabbitMQPublisher(new RabbitMQConfig(workQueue, ipRabbitMQ, portRabbitMQ));
     }
 
+    // Upload photo implementation using StreamObserver to handle multiple chunks of the photo
     @Override
     public StreamObserver<PhotoChunk> uploadPhoto(StreamObserver<ImageInfo> responseObserver) {
         return new StreamObserver<>() {
-            private String fileId;
-            private String fileExtension;
-            private FileOutputStream fileOutputStream;
-            private ArrayList<String> words;
+            private String fileId; // Unique ID for the photo file
+            private String fileExtension; // Extension of the file (.jpg, .png)
+            private FileOutputStream fileOutputStream; // Output stream to save file
+            private ArrayList<String> words; // Words to mark in the photo
 
+            // Handle the incoming chunks of the photo
             @Override
             public void onNext(PhotoChunk photoChunk) {
                 System.out.println("Received chunk of size: " + photoChunk.getData().size() + " bytes");
                 try {
-                    // Initialize file ID, extension, and output stream
                     if (fileId == null) {
-                        fileId = UUID.randomUUID().toString(); // Unique ID for the photo
+                        // Initialize file ID and extension for the first chunk
+                        fileId = UUID.randomUUID().toString();
                         fileExtension = photoChunk.getFormat();
 
                         if (!fileExtension.equalsIgnoreCase(".jpg") && !fileExtension.equalsIgnoreCase(".png")) {
                             throw new IllegalArgumentException("Unsupported file format: " + fileExtension);
                         }
 
+                        // Create file in the shared path
                         File file = new File(GLUSTER_SHARED_PATH, fileId + fileExtension);
                         fileOutputStream = new FileOutputStream(file);
 
-                        // Extract the words for marking from the first chunk
+                        // Extract words from the first chunk
                         words = new ArrayList<>(photoChunk.getWordsList());
                     }
 
@@ -59,33 +66,33 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
                 }
             }
 
+            // Handle errors during the upload
             @Override
             public void onError(Throwable throwable) {
                 System.out.println("Error occurred during upload: " + Arrays.toString(throwable.getStackTrace()));
                 closeResources();
             }
 
+            // Finalize the upload process
             @Override
             public void onCompleted() {
                 try {
-                    // Close the file output stream
+                    // Close file output stream and publish the task to RabbitMQ
                     closeResources();
-
-                    // Publish the task to RabbitMQ
                     PhotoTask task = new PhotoTask(fileId + fileExtension, words);
-                    RabbitMQPublisher.publishTask(task);
+                    rabbitMQPublisher.publishTask(task);
 
-                    // Send response with image ID
+                    // Send response with the file ID
                     ImageInfo imageInfo = ImageInfo.newBuilder().setId(fileId).build();
                     responseObserver.onNext(imageInfo);
                     responseObserver.onCompleted();
-
                     System.out.println("Upload completed for photo: " + fileId);
                 } catch (Exception e) {
                     responseObserver.onError(e);
                 }
             }
 
+            // Close resources like file output stream
             private void closeResources() {
                 try {
                     if (fileOutputStream != null) {
@@ -93,25 +100,25 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
                     }
                 } catch (IOException e) {
                     System.out.println("Error closing file on closeResources: " + e.getMessage());
-                    //e.printStackTrace();
                 }
             }
         };
     }
 
+    // Download photo implementation to stream the photo in chunks
     @Override
     public void downloadPhoto(ImageInfo request, StreamObserver<PhotoChunkData> responseObserver) {
-        String imageId = request.getId() + "-marks";
+        String imageId = request.getId() + "-marks"; // File name with "marks" suffix
         File sharedPath = new File(GLUSTER_SHARED_PATH);
 
-        // Scan directory for the file
+        // Search for the file in the shared directory
         File[] files = sharedPath.listFiles((dir, name) -> name.startsWith(imageId));
         if (files == null || files.length == 0) {
             responseObserver.onError(new FileNotFoundException("File not found for ID: " + imageId));
             return;
         }
 
-        // Use the first matching file
+        // Use the first matching file for the download
         File file = files[0];
 
         try (FileInputStream fileInputStream = new FileInputStream(file)) {
@@ -119,6 +126,7 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
             int bytesRead;
             boolean firstChunk = true;
 
+            // Stream the file in chunks to the client
             while ((bytesRead = fileInputStream.read(buffer)) != -1) {
                 PhotoChunkData.Builder chunkData = PhotoChunkData.newBuilder()
                         .setData(ByteString.copyFrom(buffer, 0, bytesRead));
@@ -140,15 +148,15 @@ public class CtSvcServiceImpl extends CtSvcServiceGrpc.CtSvcServiceImplBase {
         }
     }
 
+    // Disconnect implementation to send a message to the Spread group to remove the load
     @Override
     public void disconnect(Nothing request, StreamObserver<Nothing> responseObserver) {
-        System.out.println("Received disconnect request");
         try {
             if (spreadUtils == null) {
                 throw new IllegalStateException("SpreadUtils is not initialized.");
             }
             spreadUtils.sendMessage("REMOVE_LOAD");
-            System.out.println("REMOVE_LOAD message sent.");
+            System.out.println("REMOVE_LOAD message sent");
         } catch (Exception e) {
             System.err.println("Error sending REMOVE_LOAD message: " + e.getMessage());
         }
